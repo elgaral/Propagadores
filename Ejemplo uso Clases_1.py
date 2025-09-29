@@ -11,7 +11,7 @@ import Clase_propagacion as ptf
 import Clase_objetosEntrada as oE
 
 # Se crea un objeto de la clase propa y se definen los parámetros de entrada
-prueba = ptf.propa()
+prueba = ptf.Propa()
 prueba.z = 10.0
 prueba.L = 6.0
 prueba.N = 1024
@@ -24,6 +24,7 @@ prueba.L = prueba.N*dx
 
 # Se le pide a la clase mostrar los parámetros y verificar la condición 
 # de resolución del objeto "prueba"
+prueba.listar_metodos()
 prueba.parameters()
 prueba.resolution()
 
