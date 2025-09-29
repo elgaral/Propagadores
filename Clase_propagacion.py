@@ -70,20 +70,18 @@ class propa:
         print('BW: IR = L/(2*wl*z) \t TF= N/(2*L)')
         print('Spatial resolution = {} mm'.format(dx))
         regime = self.wl*self.z/(dx*self.L)
+        print('Regime value = {}'.format(regime))
         if regime < 1:
-            print('Regime value = {}'.format(regime))
             print('TF approximation suggested')
             aprox = 'TF'
             Ds = self.L/3 + self.wl*self.z/dx
             BW = 1/(2*dx)
         elif regime == 1:
-            print('Regime value = {}'.format(regime))
             print('Ideal case, both approximations work')
             aprox = 'TF'
             Ds = self.L
             BW = 1/(2*dx)
         else:
-            print('Regime value = {}'.format(regime))
             print('IR approximation suggested')
             aprox = 'IR'
             Ds = self.L/3
@@ -110,7 +108,7 @@ class propa:
         """
         dx = self.L/self.N
         k = 2*np.pi/self.wl
-        fx = np.arange(-1/(2*dx),1/(2*dx),1/self.L)
+        fx = np.fft.fftfreq(self.N, d=dx) 
         FX , FY = np.meshgrid(fx,fx)
         self.H = np.exp(1j*k*self.z)*np.exp(-1j*np.pi*self.wl*self.z*(FX**2+FY**2))
         if salvar == 'Y':
@@ -159,10 +157,10 @@ class propa:
         """
         print('--------------------------------------------------------------')
         print('propaTF: matríz {} X {}'.format(self.N,self.N))
-        H = np.fft.fftshift(self.H)
-        U1 = np.fft.fft2(np.fft.fftshift(u1))
-        u2 = np.fft.fftshift(np.fft.ifft2(U1*H))
-        del H,U1
+        
+        U1 = np.fft.fft2(u1)
+        u2 = np.fft.ifft2(U1*self.H)
+        del U1
         print('Terminó.')
         print('--------------------------------------------------------------')
         return u2

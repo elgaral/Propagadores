@@ -8,7 +8,7 @@ import numpy as np
 from scipy.special import jv
 from PIL import Image
 from scipy.ndimage import map_coordinates
-
+from typing import Tuple
 
 class objPlanoEntrada:
 
@@ -36,6 +36,180 @@ class objPlanoEntrada:
         self.N = N
 
     # Methods
+
+    def centerCircle(self,radi,salvar = 'N'):
+        """
+        Generates a centered iris.
+
+        Parameters
+        ----------
+        radi : float
+            Radius of the iris in mm.
+        salvar : string, optional
+            The default is 'N' do not save. 'Y' saves as npy.
+
+        Returns
+        -------
+        circ : np.array NxN.
+
+        """
+        dx = self.L/self.N
+        x = np.arange(-self.L/2,self.L/2,dx)
+        X , Y = np.meshgrid(x,x)
+        R = np.sqrt(X**2+Y**2)
+        circ = np.zeros((self.N,self.N))
+        circ[R<=radi] = 1.0
+        if salvar == 'Y':
+            np.save('cIris_N{}_L{}_radi{}'.format(self.N,self.L,radi),circ)
+        return circ
+    
+    def centerEmbedded(self,Nx,Ny,u1):
+        """
+        Embedes a square window-matrix inside a plane-matrix of zeros
+
+        Parameters
+        ----------
+        Nx : integer.
+            Plane-matrix dimension in X-coord (columns).
+        Ny : Integer
+            Plane-matrix dimension in Y-coord (rows).
+        u1 : complex
+            Square window-matrix.
+
+        Returns
+        -------
+        u2 : Complex
+            Window-matrix embedded in Plane-matrix.
+
+        """
+        Nw = np.shape(u1)[0]
+        u2 = np.zeros_like(u1, shape = (Ny,Nx))
+        u2[int((Ny-Nw)/2):int((Ny-Nw)/2)+Nw,
+                int((Nx-Nw)/2):int((Nx-Nw)/2)+Nw] = u1
+        return u2
+
+    def centerFSPP(self,ell,Nell,salvar = 'N'):
+        """
+        Generates a centered spiral phase plate.
+
+        Parameters
+        ----------
+        ell : float
+            Fractional topological charge of the SPP
+        Nell : integer
+            Maximun integer topological charge of the expansion
+        salvar : string, optional
+            The default is 'N' do not save. 'Y' saves as npy
+
+        Returns
+        -------
+        spp : complex float
+            Centered spiral phase mask
+
+        """
+        dx = self.L/self.N
+        x = np.arange(-self.L/2,self.L/2,dx)
+        X , Y = np.meshgrid(x,x)
+        theta = np.arctan2(Y,X)
+        sumSpp = 0 + 1j*0
+        for n in range(0,Nell):
+            sumSpp = sumSpp + np.exp(1j*n*theta)/(ell-n) + np.exp(-1j*n*theta)/(ell+n)
+        spp = np.exp(1j*np.angle(np.exp(1j*ell*np.pi)*np.sin(np.pi*ell)*sumSpp/np.pi))
+        if salvar == 'Y':
+            np.save('spp_N{}_L{}_ell{}'.format(self.N,self.L,ell),spp)
+        return spp
+
+    def centerGauss(self, z=0.0, w0=1.0):
+        """
+        Complex gaussean beam, with amplitude 1 in the waist.
+
+        Parameters
+        ----------
+        z : float
+            distance from the waist. (mm)
+        w0: 
+            radius of the waist. (mm)
+        
+        Returns
+        -------
+        E : np.array NxN type complex 128.
+        """
+        x = np.linspace(-self.L/2, self.L/2, self.N)
+        X, Y = np.meshgrid(x,x)
+        r2 = X**2 + Y**2
+        k = 2 * np.pi / self.wl
+        z_R = np.pi * w0**2 / self.wl            # longitud de Rayleigh.
+        w = w0 * np.sqrt(1+ (z / z_R)**2)  # radio del haz en z.
+
+        # manejar z=0 sin divisiones por cero
+        if z == 0.0:
+            R = np.inf
+            zeta = 0.0
+        else:
+            R = z * (1.0 + (z_R / z)**2)
+            zeta = np.arctan(z / z_R)
+
+        amp = w0 / w  # factor de amplitud
+        envelope = amp * np.exp(- r2 / (w**2))
+        phase = np.exp(-1j * (k * z + (k * r2) / (2.0 * R) - zeta))
+
+        E = envelope * phase
+        return E
+    
+    def centerThinLens(self,f,wl,salvar = 'N'):
+        """
+        Centered phase distribution of a thin lens in paraxial approximation.
+        Check Introduction to Fourier Optics, Goodman, 1996, page 99.
+
+        Parameters
+        ----------
+        f : float
+            focal distance of the thin lens
+        wl : float
+            Coherent light wavelenght
+        salvar : string, optional
+            The default is 'N' do not save. 'Y' saves as npy
+
+        Returns
+        -------
+        lens : complex float
+            Centered lens phase distribution
+
+        """
+        dx = self.L/self.N
+        x = np.arange(-self.L/2,self.L/2,dx)
+        X , Y = np.meshgrid(x,x)
+        lens = np.exp(-1j*np.pi/(wl*f)*(X**2+Y**2))
+        if salvar == 'Y':
+            np.save('tLens_N{}_L{}_wl{}_f{}'.format(self.N,self.L,wl,f),lens)
+        return lens
+       
+    def centerSPP(self,ell,salvar = 'N'):
+        """
+        Generates a centered spiral phase plate
+
+        Parameters
+        ----------
+        ell : integer
+            Topological charge of the SPP
+        salvar : string, optional
+            The default is 'N' do not save. 'Y' saves as npy
+
+        Returns
+        -------
+        spp : complex float
+            Centered spiral phase mask
+
+        """
+        dx = self.L/self.N
+        x = np.arange(-self.L/2,self.L/2,dx)
+        X , Y = np.meshgrid(x,x)
+        theta = np.arctan2(Y,X)
+        spp = np.exp(1j*ell*theta)
+        if salvar == 'Y':
+            np.save('spp_N{}_L{}_ell{}'.format(self.N,self.L,ell),spp)
+        return spp
+
     def centerSquare(self,l,salvar = 'N'):
         """
         Centered square window.
@@ -65,9 +239,28 @@ class objPlanoEntrada:
         if salvar == 'Y':
             np.save('csPlane_N{}_L{}_l{}'.format(self.N,self.L,l),back)
         return back
-    
-    from typing import Tuple
 
+    def centerWindow(self, u2, Lw):
+        """
+        Extracts the central part of a matrix
+
+        Parameters
+        ----------
+        u2 : complex
+            Input matrix.
+        Lw : integer
+            Window side length in mm.
+
+        Returns
+        -------
+        complex
+            New matrix of the window.
+
+        """
+        Nw = int(self.N*Lw/self.L)
+        return u2[int((self.N-Nw)/2):int((self.N-Nw)/2)+Nw,
+                int((self.N-Nw)/2):int((self.N-Nw)/2)+Nw]
+    
     def extract_radial_profile(self,image: np.ndarray, center: Tuple[float, float], radius: float, n_angles: int = 360) -> np.ndarray:
         """
         Extrae el perfil de intensidad de una imagen en un círculo de radio fijo desde un punto dado.
@@ -96,24 +289,7 @@ class objPlanoEntrada:
         #order=0 para que no elimine los saltos bruscos de interés
         profile = map_coordinates(image, coords, order=0, mode='constant', cval=0.0)
         return profile
-    
 
-
-    
-    def loadImage(self,name):
-        
-        # Cargar la imagen con PIL y convertirla en un array de NumPy
-        imagen = Image.open(name)
-        imagen_array = np.array(imagen)
-        #imagen_array = imagen_array[:,:,0]
-        
-        # Mostrar información de la imagen
-        print(f"Forma de la imagen: {imagen_array.shape}")  
-        print(f"Tipo de datos: {imagen_array.dtype}")
-        
-        return imagen_array
-
-    
     def fork(self, kx, tc = 1, n = 2, salvar='N'):
         dx = self.L/self.N
         x = np.arange(-self.L/2,self.L/2,dx)
@@ -121,9 +297,44 @@ class objPlanoEntrada:
         theta = np.arctan2(Y,X)
         forkMask = 0.5*(1 - np.cos(kx*X + 2*np.pi/2 - tc*theta))
         forkMask = np.where((X % (n * 2*np.pi/kx)) < np.pi/kx, 0, forkMask)
+        return forkMask    
 
-        return forkMask
-    
+    def grayLevels(self,u,GL,tipo = 'phase'):
+        """
+        Discretize the amplitude or phase of a complex object in GL levels.
+        It uses floor meaning that it will never reach the maximum value.
+
+        Parameters
+        ----------
+        u : complex
+            Object with amplitude and phase
+        GL : integer
+            Number of discretization levels
+        tipo : string, optional
+            The default is 'phase' to discretize the phase of the object.
+            'abs' to discretized the amplitude of the object.
+
+        Returns
+        -------
+        U : complex
+            Object with phase or amplitude discretized.
+                    if tipo == 'phase':
+
+        """
+        if tipo == 'phase':
+            nu = np.angle(u) + np.pi
+            aux = np.floor(GL*nu/(2*np.pi))
+            aux[aux==GL] = GL - 1
+            nu = 2*np.pi*aux/(GL)
+            U = abs(u)*np.exp(1j*(nu-np.pi))
+
+        elif tipo == 'abs':
+            nu = abs(u)
+            aux = np.round((GL-1)*nu/np.max(nu))
+            nu = np.max(nu)*aux/(GL-1)
+            U = nu*np.exp(1j*np.angle(u))
+        return U
+
     def gridBinary(self,a,b,dphi,w,lpm,direc = 'Horizontal',salvar = 'N'):
         """
         Generates a complex binary grating.
@@ -210,203 +421,29 @@ class objPlanoEntrada:
             if posIni + int(barra.shape[1]) >= self.N: break
             if jj % order != 0 : red[:,posIni:posIni+int(barra.shape[1])] = barra
             
-        return red
-
-    def centerGauss(self,w0,salvar = 'N'):
-        """
-        Generates an amplitude gaussian beam at its beam waist.
-        Check Fundamentals of Photonics, Saleh and Teich, 1991, page 83
-
-        Parameters
-        ----------
-        w0 : float
-            Beam waist radius
-        salvar : string, optional
-            The default is 'N' do not save. 'Y' saves as npy
-
-        Returns
-        -------
-        gbeam : float
-            Normalized Gaussian beam amplitude distribution, centered.
-
-        """
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        gbeam = np.exp(-(X**2+Y**2)/(2*w0**2))
-        if salvar == 'Y':
-            np.save('gBeam_N{}_L{}_w0{}'.format(self.N,self.L,w0),gbeam)
-        return gbeam
-
-    def centerSPP(self,ell,salvar = 'N'):
-        """
-        Generates a centered spiral phase plate
-
-        Parameters
-        ----------
-        ell : integer
-            Topological charge of the SPP
-        salvar : string, optional
-            The default is 'N' do not save. 'Y' saves as npy
-
-        Returns
-        -------
-        spp : complex float
-            Centered spiral phase mask
-
-        """
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        theta = np.arctan2(Y,X)
-        spp = np.exp(1j*ell*theta)
-        if salvar == 'Y':
-            np.save('spp_N{}_L{}_ell{}'.format(self.N,self.L,ell),spp)
-        return spp
+        return red 
     
-    def centerFSPP(self,ell,Nell,salvar = 'N'):
-        """
-        Generates a centered spiral phase plate
-
-        Parameters
-        ----------
-        ell : float
-            Fractional topological charge of the SPP
-        Nell : integer
-            Maximun integer topological charge of the expansion
-        salvar : string, optional
-            The default is 'N' do not save. 'Y' saves as npy
-
-        Returns
-        -------
-        spp : complex float
-            Centered spiral phase mask
-
-        """
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        theta = np.arctan2(Y,X)
-        sumSpp = 0 + 1j*0
-        for n in range(0,Nell):
-            sumSpp = sumSpp + np.exp(1j*n*theta)/(ell-n) + np.exp(-1j*n*theta)/(ell+n)
-        spp = np.exp(1j*np.angle(np.exp(1j*ell*np.pi)*np.sin(np.pi*ell)*sumSpp/np.pi))
-        if salvar == 'Y':
-            np.save('spp_N{}_L{}_ell{}'.format(self.N,self.L,ell),spp)
-        return spp
-
-    def centerThinLens(self,f,wl,salvar = 'N'):
-        """
-        Centered phase distribution of a thin lens in paraxial approximation.
-        Check Introduction to Fourier Optics, Goodman, 1996, page 99.
-
-        Parameters
-        ----------
-        f : float
-            focal distance of the thin lens
-        wl : float
-            Coherent light wavelenght
-        salvar : string, optional
-            The default is 'N' do not save. 'Y' saves as npy
-
-        Returns
-        -------
-        lens : complex float
-            Centered lens phase distribution
-
-        """
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        lens = np.exp(-1j*np.pi/(wl*f)*(X**2+Y**2))
-        if salvar == 'Y':
-            np.save('tLens_N{}_L{}_wl{}_f{}'.format(self.N,self.L,wl,f),lens)
-        return lens
-
-    def centerCircle(self,radi,salvar = 'N'):
-        """
-        Generates a centered iris
-
-        Parameters
-        ----------
-        radi : float
-            Radius of the iris in mm
-        salvar : string, optional
-            The default is 'N' do not save. 'Y' saves as npy
-
-
-        Returns
-        -------
-        circ : TYPE
-            DESCRIPTION.
-
-        """
+    def loadImage(self,name):
+        
+        # Cargar la imagen con PIL y convertirla en un array de NumPy
+        imagen = Image.open(name)
+        imagen_array = np.array(imagen)
+        #imagen_array = imagen_array[:,:,0]
+        
+        # Mostrar información de la imagen
+        print(f"Forma de la imagen: {imagen_array.shape}")  
+        print(f"Tipo de datos: {imagen_array.dtype}")
+        
+        return imagen_array
+    
+    def obliqueAstigmatism(self,f):
         dx = self.L/self.N
         x = np.arange(-self.L/2,self.L/2,dx)
         X , Y = np.meshgrid(x,x)
         R = np.sqrt(X**2+Y**2)
-        circ = np.zeros((self.N,self.N))
-        circ[R<=radi] = 1.0
-        if salvar == 'Y':
-            np.save('cIris_N{}_L{}_radi{}'.format(self.N,self.L,radi),circ)
-        return circ
-
-    def grayLevels(self,u,GL,tipo = 'phase'):
-        """
-        Discretize the amplitude or phase of a complex object in GL levels.
-        It uses floor meaning that it will never reach the maximum value.
-
-        Parameters
-        ----------
-        u : complex
-            Object with amplitude and phase
-        GL : integer
-            Number of discretization levels
-        tipo : string, optional
-            The default is 'phase' to discretize the phase of the object.
-            'abs' to discretized the amplitude of the object.
-
-        Returns
-        -------
-        U : complex
-            Object with phase or amplitude discretized.
-                    if tipo == 'phase':
-
-        """
-        if tipo == 'phase':
-            nu = np.angle(u) + np.pi
-            aux = np.floor(GL*nu/(2*np.pi))
-            aux[aux==GL] = GL - 1
-            nu = 2*np.pi*aux/(GL)
-            U = abs(u)*np.exp(1j*(nu-np.pi))
-
-        elif tipo == 'abs':
-            nu = abs(u)
-            aux = np.round((GL-1)*nu/np.max(nu))
-            nu = np.max(nu)*aux/(GL-1)
-            U = nu*np.exp(1j*np.angle(u))
-        return U
-
-    def centerWindow(self, u2, Lw):
-        """
-        Extracts the central part of a matrix
-
-        Parameters
-        ----------
-        u2 : complex
-            Input matrix.
-        Lw : integer
-            Window side length in mm.
-
-        Returns
-        -------
-        complex
-            New matrix of the window.
-
-        """
-        Nw = int(self.N*Lw/self.L)
-        return u2[int((self.N-Nw)/2):int((self.N-Nw)/2)+Nw,
-                int((self.N-Nw)/2):int((self.N-Nw)/2)+Nw]
+        theta = np.arctan2(Y,X)
+        Z22 = f*np.sqrt(6)*R**2*np.sin(2*theta)
+        return np.exp(1j*Z22)
     
     def shiftRectangle(self, u2, Lv, Lh, shiftV, shiftH):
         """
@@ -431,49 +468,6 @@ class objPlanoEntrada:
         Nsh = int(self.N*shiftH/self.L)
         return u2[Nsv + int((self.N-Nv)/2):Nsv + int((self.N-Nv)/2) + Nv,
                 Nsh + int((self.N-Nh)/2): Nsh + int((self.N-Nh)/2) + Nh]
-
-    def centerEmbedded(self,Nx,Ny,u1):
-        """
-        Embedes a square window-matrix inside a plane-matrix of zeros
-
-        Parameters
-        ----------
-        Nx : integer
-            Plane-matrix dimension in X-coord (columns).
-        Ny : Integer
-            Plane-matrix dimension in Y-coord (rows).
-        u1 : complex
-            Square window-matrix.
-
-        Returns
-        -------
-        u2 : Complex
-            Window-matrix embedded in Plane-matrix.
-
-        """
-        Nw = np.shape(u1)[0]
-        u2 = np.zeros((Ny,Nx))
-        u2[int((Ny-Nw)/2):int((Ny-Nw)/2)+Nw,
-                int((Nx-Nw)/2):int((Nx-Nw)/2)+Nw] = u1
-        return u2
-
-    def obliqueAstigmatism(self,f):
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        R = np.sqrt(X**2+Y**2)
-        theta = np.arctan2(Y,X)
-        Z22 = f*np.sqrt(6)*R**2*np.sin(2*theta)
-        return np.exp(1j*Z22)
-
-    def verticalAstigmatism(self,f):
-        dx = self.L/self.N
-        x = np.arange(-self.L/2,self.L/2,dx)
-        X , Y = np.meshgrid(x,x)
-        R = np.sqrt(X**2+Y**2)
-        theta = np.arctan2(Y,X)
-        Z22 = f*np.sqrt(6)*R**2*np.cos(2*theta)
-        return np.exp(1j*Z22)
 
     def sphericalAberration(self,f,wl,salvar = 'N'):
         """
@@ -517,6 +511,15 @@ class objPlanoEntrada:
         Bessel = 2*np.pi*D*jv(1,k*D*R/f)/(k*R/f)
         u = Bessel*np.exp(1j*k*R**2/(2*f))/(1j*wl*f)
         return u
+
+    def verticalAstigmatism(self,f):
+        dx = self.L/self.N
+        x = np.arange(-self.L/2,self.L/2,dx)
+        X , Y = np.meshgrid(x,x)
+        R = np.sqrt(X**2+Y**2)
+        theta = np.arctan2(Y,X)
+        Z22 = f*np.sqrt(6)*R**2*np.cos(2*theta)
+        return np.exp(1j*Z22)
 
     def verticalTilt(self,wl,p=8,deg=90):
         dx = self.L/self.N

@@ -9,10 +9,10 @@ import numpy as np
 import pylab as plt
 import Clase_propagacion as ptf
 import Clase_objetosEntrada as oE
-
+import Clase_Graficadores as gr
 # Se crea un objeto de la clase propa y se definen los parámetros de entrada
 prueba = ptf.propa()
-prueba.z = 10.0
+prueba.z = 1000.0
 prueba.L = 6.0
 prueba.N = 1024
 prueba.wl = 0.5e-3
@@ -36,32 +36,40 @@ u1 = mask.centerCircle(radi=1.0)
 #u1 = mask.centerGauss(w0=2.5)*mask.centerSPP(ell=2)
 
 # Graficación plano de entrada
-plt.figure()
-plt.imshow(u1)
-plt.colorbar()
+# Se crea objeto de la clase graficadores.
+
+grafica = gr.FieldPlotter(dx = dx, units = 'um' )
+# grafica.plot_amplitude(u1)
 
 # Propagación usando TF e IR
 H = prueba.TFunc()
 h = prueba.IRfunc()
 u2 = prueba.propaTF(u1)
 u3 = prueba.propaIR(u1)
+u4 = mask.centerSPP(ell = 4)
 
-#Graficación plano de salida
-plt.figure()
-plt.title('Amplitud: con TF')
-plt.imshow(abs(u2))
-plt.colorbar()
-plt.figure()
-plt.title('Fase: con TF')
-plt.imshow(np.angle(u2))
-plt.colorbar()
+# Graficación plano de salida
 
-plt.figure()
-plt.title('Amplitud: con IR')
-plt.imshow(abs(u3))
-plt.colorbar()
-plt.figure()
-plt.title('Fase: con IR')
-plt.imshow(np.angle(u3))
-plt.colorbar()
+
+# grafica.plot_amplitude(u2, title = 'Amplitud: con TF')
+# grafica.plot_phase(u2, title = 'Fase: con TF')
+# plt.show()
+
+grafica.plot_phase(u4, title = 'vórtice')
+grafica.plot_compare([u2, u3, u4], labels = ['propTF', 'propIR', 'vórtice'])
 plt.show()
+# plt.figure()
+# plt.title('Amplitud: con IR')
+# plt.imshow(abs(u3))
+# plt.colorbar()
+# plt.figure()
+# plt.title('Fase: con IR')
+# plt.imshow(np.angle(u3), cmap = 'twilight')
+# plt.colorbar()
+# grafica.plot_amplitude(u3, title = 'Amplitud: con TF')
+# grafica.plot_phase(u3, title = 'Fase: con TF')
+# plt.show()
+
+
+
+
