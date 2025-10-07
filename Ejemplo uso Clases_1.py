@@ -9,10 +9,10 @@ import numpy as np
 import pylab as plt
 import Clase_propagacion as ptf
 import Clase_objetosEntrada as oE
-import Clase_Graficadores as gr
+import Clase_Graficacion as gr
 # Se crea un objeto de la clase propa y se definen los parámetros de entrada
 prueba = ptf.propa()
-prueba.z = 1000.0
+prueba.z = 10000.0
 prueba.L = 6.0
 prueba.N = 1024
 prueba.wl = 0.5e-3
@@ -31,9 +31,10 @@ prueba.resolution()
 mask = oE.objPlanoEntrada(L=prueba.L,N=prueba.N)
 
 #Algunos posibles plano de entrada
-u1 = mask.centerCircle(radi=1.0)
+#u1 = mask.centerCircle(radi=1.0)
 #u1 = mask.centerSquare(l=2.0)
 #u1 = mask.centerGauss(w0=2.5)*mask.centerSPP(ell=2)
+u1 = mask.gridBinary(.8, .6, np.pi, .3, 5)
 
 # Graficación plano de entrada
 # Se crea objeto de la clase graficadores.
@@ -45,19 +46,27 @@ grafica = gr.FieldPlotter(dx = dx, units = 'um' )
 H = prueba.TFunc()
 h = prueba.IRfunc()
 u2 = prueba.propaTF(u1)
+U2 = prueba.propagTF(u1)
 u3 = prueba.propaIR(u1)
+U3 = prueba.propagIR(u1)
 u4 = mask.centerSPP(ell = 4)
 
 # Graficación plano de salida
 
 
-# grafica.plot_amplitude(u2, title = 'Amplitud: con TF')
-# grafica.plot_phase(u2, title = 'Fase: con TF')
-# plt.show()
+grafica.plot_amplitude(u3, title = 'Amplitud: con propaIR')
+grafica.plot_amplitude(U3, title = 'Amplitud: con propagIR')
+grafica.plot_amplitude(U3-u3, title = 'Amplitud: diferencia')
+grafica.plot_phase(u3, title = 'Fase: con propaIR')
+grafica.plot_phase(U3, title = 'Fase: con propagIR')
 
-grafica.plot_phase(u4, title = 'vórtice')
-grafica.plot_compare([u2, u3, u4], labels = ['propTF', 'propIR', 'vórtice'])
 plt.show()
+
+#grafica.plot_phase(u4, title = 'vórtice')
+#grafica.plot_compare([u2, u3, u4], labels = ['propTF', 'propIR', 'vórtice'])
+#plt.show()
+
+
 # plt.figure()
 # plt.title('Amplitud: con IR')
 # plt.imshow(abs(u3))
