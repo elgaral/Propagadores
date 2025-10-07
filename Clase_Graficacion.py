@@ -401,18 +401,6 @@ class FieldPlotter:
         extent_crop: el extent en unidades físicas para graficación.
         (ix0,ix1,iy0,iy1): posición en pixeles de las dos esquinas del recorte.
         """
-
-        """
-        Muestra un zoom (recorte) del campo.
-        - center: centro del zoom (x,y) en unidades físicas por defecto. Pon center_units='pixels' para usar índices.
-        - size: ancho en unidades (o píxeles si size_units='pixels') o tuple (sx,sy).
-        - factor: alternativa a size; el crop será (nx/factor, ny/factor).
-        - resample: si True, interpola el crop para devolverlo a tamaño `out_size` (o al tamaño original si out_size None).
-                   Usa scipy.ndimage.zoom si está disponible; si no, hace un np.repeat (nearest).
-        - out_size: (ny_out, nx_out) en píxeles para la visualización tras re-muestreo. Si None y resample True, usa (ny,nx) original.
-        - interp_order: orden de interpolación para scipy.ndimage.zoom (0..5).
-        Retorna (ax, crop_array, extent_crop, indices_crop)
-        """
         # Halla el tamaño dela imagen
         ny, nx = field.shape[-2], field.shape[-1]
 
