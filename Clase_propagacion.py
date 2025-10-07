@@ -37,6 +37,9 @@ class propa:
         self.N = N
         self.wl = wl
         self.z = z
+        self.H = None
+        self.h = None
+        self.aprox = None
         
     # Methods
         
@@ -73,23 +76,23 @@ class propa:
         print('Regime value = {}'.format(regime))
         if regime < 1:
             print('TF approximation suggested')
-            aprox = 'TF'
+            self.aprox = 'TF'
             Ds = self.L/3 + self.wl*self.z/dx
             BW = 1/(2*dx)
         elif regime == 1:
             print('Ideal case, both approximations work')
-            aprox = 'TF'
+            self.aprox = 'TF'
             Ds = self.L
             BW = 1/(2*dx)
         else:
             print('IR approximation suggested')
-            aprox = 'IR'
+            self.aprox = 'IR'
             Ds = self.L/3
             BW = self.L/(2*self.wl*self.z)
         print('Side length of effective area = {} mm'.format(Ds))
         print('Bandwidth = {} 1/mm'.format(BW))
         print('--------------------------------------------------------------')
-        return aprox, Ds , BW
+        return  Ds , BW
     
     def TFunc(self,salvar='N'):
         """
@@ -191,5 +194,35 @@ class propa:
         print('Terminó.')
         print('--------------------------------------------------------------')
         return u2
+    def propa(self, u1):
+        """
+        Propagates the object using Fresnel aproximation. 
+        The method of propagation used is selected through
+        resolution instance, the aprox parameter.
+
+        Parameters
+        ----------
+        u1 : float
+            Is the object ot be propagated. It must be square.
+
+        Returns
+        -------
+        u2 : float
+            Object propagation result.
+        """
+        if self.aprox is None:
+            self.resolution()
+        if self.aprox == 'TF':
+            if self.H is None:
+                self.TFunc()
+            else:
+                u2 = self.propaTF(u1)
+                return u2
+        else:
+            if self.h is None:
+                self.IRfunc()
+            else:
+                u2 = self.propaIR(u1)
+                return u2
 
             

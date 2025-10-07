@@ -234,7 +234,6 @@ class FieldPlotter:
         ----------
         fields: elemento iterable.
             Elemento iterable que contiene las matrices con los campos.
-            Si ya el plot está creado, sobreescribe en el plot.
         normalize: bool.
             Para comparar o no los campos normalizados.
         
@@ -258,7 +257,7 @@ class FieldPlotter:
 
         for i in range(len(fields)):
             im = axes[i].imshow(intensities[i], extent=extent, origin='lower',
-                                aspect='equal', cmap='gray')
+                                aspect='equal', cmap='gray', **kwargs)
             axes[i].set_title(labels[i]); axes[i].set_xlabel(f"x [{self.units}]"); axes[0].set_ylabel(f"y [{self.units}]")
             fig.colorbar(im, ax=axes[i])
 
@@ -267,28 +266,50 @@ class FieldPlotter:
     
     def _get_crop(self, field, center=None, size=None, factor=None,
                   center_units='physical', size_units='physical', clip=True):
+        """ Hace el recorte de una matriz.
+
+        Parameters
+        ----------
+        field: numpy array NxN.
+            Campo sobre el que se hace el recor.
+        center: tuple.
+            Posición del centro del recorte, se puede dar en píxeles o unidades
+            físicas, especificar en 'center_units'.
+        size: tuple o int o float.
+            Tamaño del recorte, puede darse en píxeles o unidades físicas.
+            Se puede indicar el ancho y largo con una tupla, o un solo valor
+            para un recorte cuadrado. Indicar la unidad de la medida en 
+            'size_units'.
+        factor: float o int.
+            Para tomar un recuadro reducido de la imagen, por ejemplo, mitad,
+            tercera parte, etc.
+        center_units: string
+            Unidades de la posición del centro entregado 'physical' para 
+            unidad física, cualquier otro valor supone que es entregado en píxeles.
+        size_units: string
+            Unidades del tamaño del recorte 'physical' para unidad física,
+            cualquier otro valor supone que es entregado en píxeles.
+        clip: bool
+            para proteger el indexado.
+
+        Retunrs
+        -------
+        crop: recorte del field.
+        extent_crop: el extent en unidades físicas para graficación.
+        (ix0,ix1,iy0,iy1): posición en pixeles de las dos esquinas del recorte.
         """
-        Devuelve (crop, extent_crop, (ix0,ix1,iy0,iy1))
-        center: (x,y) en unidades físicas (default) o en píxeles si center_units='pixels'.
-                Si None, usa el centro de la imagen.
-        size: ancho (x) en la misma unidad que size_units. Si es tuple (sx,sy) trata como (ancho,alto).
-              Si None y factor provided, size se obtiene por factor.
-        factor: si se pasa, el tamaño del crop será (nx/factor, ny/factor).
-        center_units: 'physical' o 'pixels'
-        size_units: 'physical' o 'pixels'
-        """
-        # Asegurar que trabajamos con una matriz 2D (últimas 2 dims)
-        arr = np.atleast_2d(field)
         ny, nx = field.shape[-2], field.shape[-1]
 
         # Determinar centro en píxeles
+        # Si no se provee center
         if center is None:
             cx_px = nx // 2
             cy_px = ny // 2
+        
         else:
             cx, cy = center
             if center_units == 'physical':
-                # extent por defecto: (-nx*dx/2, nx*dx/2, -ny*dx/2, ny*dx/2)
+                # extent supuesto: (-nx*dx/2, nx*dx/2, -ny*dx/2, ny*dx/2)
                 cx_px = int(round(cx / self.dx + nx / 2))
                 cy_px = int(round(cy / self.dx + ny / 2))
             else:  # 'pixels'
@@ -297,14 +318,17 @@ class FieldPlotter:
 
         # Determinar tamaño en píxeles
         if size is not None:
+            # Si un solo valor, se asume cuadrado.
             if isinstance(size, (int, float)):
                 sx = sy = size
+            # Si se da alto y ancho.
             else:
                 sx, sy = size
+            
             if size_units == 'physical':
                 sx_px = int(round(sx / self.dx))
                 sy_px = int(round(sy / self.dx))
-            else:
+            else: # 'pixeles'
                 sx_px = int(round(sx))
                 sy_px = int(round(sy))
         elif factor is not None:
@@ -319,16 +343,17 @@ class FieldPlotter:
         half_x = sx_px // 2
         half_y = sy_px // 2
 
+        # Indices por los que se va a recortar
         ix0 = cx_px - half_x
         ix1 = cx_px + (sx_px - half_x)
         iy0 = cy_px - half_y
         iy1 = cy_px + (sy_px - half_y)
 
-        if clip:
+        if clip: # Por si excede el tamaño de la imagen
             ix0 = max(0, ix0); iy0 = max(0, iy0)
             ix1 = min(nx, ix1); iy1 = min(ny, iy1)
 
-        crop = arr[iy0:iy1, ix0:ix1]
+        crop = field[iy0:iy1, ix0:ix1]
 
         # extent físico del crop: (xmin, xmax, ymin, ymax)
         xmin = (ix0 - nx/2) * self.dx
@@ -344,6 +369,39 @@ class FieldPlotter:
                   resample=False, out_size=None, interp_order=3,
                   ax=None, cmap='viridis', show_cb=True, title=None,
                   vmin=None, vmax=None, **imshow_kwargs):
+        """ Hace el recorte de una matriz.
+
+        Parameters
+        ----------
+        field: numpy array NxN.
+            Campo sobre el que se hace el recor.
+        center: tuple.
+            Posición del centro del recorte, se puede dar en píxeles o unidades
+            físicas, especificar en 'center_units'.
+        size: tuple o int o float.
+            Tamaño del recorte, puede darse en píxeles o unidades físicas.
+            Se puede indicar el ancho y largo con una tupla, o un solo valor
+            para un recorte cuadrado. Indicar la unidad de la medida en 
+            'size_units'.
+        factor: float o int.
+            Para tomar un recuadro reducido de la imagen, por ejemplo, mitad,
+            tercera parte, etc.
+        center_units: string
+            Unidades de la posición del centro entregado 'physical' para 
+            unidad física, cualquier otro valor supone que es entregado en píxeles.
+        size_units: string
+            Unidades del tamaño del recorte 'physical' para unidad física,
+            cualquier otro valor supone que es entregado en píxeles.
+        clip: bool
+            para proteger el indexado.
+
+        Retunrs
+        -------
+        crop: recorte del field.
+        extent_crop: el extent en unidades físicas para graficación.
+        (ix0,ix1,iy0,iy1): posición en pixeles de las dos esquinas del recorte.
+        """
+
         """
         Muestra un zoom (recorte) del campo.
         - center: centro del zoom (x,y) en unidades físicas por defecto. Pon center_units='pixels' para usar índices.
@@ -355,26 +413,27 @@ class FieldPlotter:
         - interp_order: orden de interpolación para scipy.ndimage.zoom (0..5).
         Retorna (ax, crop_array, extent_crop, indices_crop)
         """
-        arr = np.atleast_2d(field)
-        ny, nx = arr.shape[-2], arr.shape[-1]
+        # Halla el tamaño dela imagen
+        ny, nx = field.shape[-2], field.shape[-1]
 
+        # Calcula el recorte
         crop, extent_crop, indices = self._get_crop(field, center=center, size=size, factor=factor,
                                                     center_units=center_units, size_units=size_units)
-        crop_shape = crop.shape
-        # decidir tamaño de salida
+        # decide tamaño de la imagen de salida
         if resample:
             if out_size is None:
                 out_ny, out_nx = ny, nx
             else:
                 out_ny, out_nx = out_size
             # factor de zoom para llevar crop -> out_size
-            zoom_y = out_ny / max(1, crop_shape[0])
-            zoom_x = out_nx / max(1, crop_shape[1])
+            zoom_y = out_ny / max(1, crop.shape[0])
+            zoom_x = out_nx / max(1, crop.shape[1])
+            
+            # Si la imagen es más grande, hay que hacer una interpolación en la imagen 
             try:
                 from scipy.ndimage import zoom as ndi_zoom
                 crop_resampled = ndi_zoom(crop, (zoom_y, zoom_x), order=interp_order)
             except Exception:
-                # Fallback simple nearest-neighbor con np.repeat (mantiene complejos)
                 ry = int(round(zoom_y)) if zoom_y >= 1 else 1
                 rx = int(round(zoom_x)) if zoom_x >= 1 else 1
                 crop_resampled = np.repeat(np.repeat(crop, ry, axis=0), rx, axis=1)
@@ -384,6 +443,8 @@ class FieldPlotter:
         else:
             display_arr = crop
             extent_display = extent_crop
+
+        # Graficación
 
         if ax is None:
             fig, ax = plt.subplots()
